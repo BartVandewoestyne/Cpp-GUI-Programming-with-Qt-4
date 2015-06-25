@@ -6,7 +6,7 @@
 void Consumer::run()
 {
     for (int i = 0; i < DataSize; ++i) {
-        freeSpace.acquire();
+        usedSpace.acquire();
 	//std::cerr << buffer[i % BufferSize];
 	std::cerr << "c";
 	freeSpace.release();
