@@ -23,6 +23,7 @@ MainWindow::MainWindow()
 
     setWindowIcon(QIcon(":/images/icon.png"));
     setCurrentFile("");
+
     // NECESSARY FOR MULTIPLE WINDOWS
     //setAttribute(Qt::WA_DeleteOnClose);
 }
@@ -97,6 +98,7 @@ void MainWindow::find()
                                                Qt::CaseSensitivity)));
     }
     findDialog->show();
+    findDialog->raise(); // NOTE: this was not there in the original code???
     findDialog->activateWindow();
 }
 
@@ -107,7 +109,7 @@ void MainWindow::goToCell()
     if (dialog.exec()) {
         QString str = dialog.lineEdit->text().toUpper();
         spreadsheet->setCurrentCell(str.mid(1).toInt() - 1,
-                                    str[0].unicode() - ’A’);
+                                    str[0].unicode() - 'A');
     }
 }
 
@@ -115,8 +117,8 @@ void MainWindow::sort()
 {
     SortDialog dialog(this);
     QTableWidgetSelectionRange range = spreadsheet->selectedRange();
-    dialog.setColumnRange(’A’ + range.leftColumn(),
-                          ’A’ + range.rightColumn());
+    dialog.setColumnRange('A' + range.leftColumn(),
+                          'A' + range.rightColumn());
 
     if (dialog.exec()) {
         SpreadsheetCompare compare;
@@ -140,8 +142,8 @@ void MainWindow::sort()
 //{
 //    SortDialog dialog(this);
 //    QTableWidgetSelectionRange range = spreadsheet->selectedRange();
-//    dialog.setColumnRange(’A’ + range.leftColumn(),
-//                          ’A’ + range.rightColumn());
+//    dialog.setColumnRange('A' + range.leftColumn(),
+//                          'A' + range.rightColumn());
 //    if (dialog.exec())
 //        spreadsheet->performSort(dialog.comparisonObject());
 //}
@@ -221,8 +223,8 @@ void MainWindow::createActions()
     exitAction = new QAction(tr("E&xit"), this);
     exitAction->setShortcut(tr("Ctrl+Q"));
     exitAction->setStatusTip(tr("Exit the application"));
-    //connect(exitAction, SIGNAL(triggered()), qApp, SLOT(closeAllWindows()));
-    connect(exitAction, SIGNAL(triggered()), this, SLOT(close()));
+    //connect(exitAction, SIGNAL(triggered()), qApp, SLOT(closeAllWindows()));  // MULTIPLE WINDOWS
+    connect(exitAction, SIGNAL(triggered()), this, SLOT(close()));  // SINGLE WINDOW
 
     selectAllAction = new QAction(tr("&All"), this);
     selectAllAction->setShortcut(tr("Ctrl+A"));
@@ -234,18 +236,19 @@ void MainWindow::createActions()
     showGridAction = new QAction(tr("&Show Grid"), this);
     showGridAction->setCheckable(true);
     showGridAction->setChecked(spreadsheet->showGrid());
-    showGridAction->setStatusTip(tr("Show or hide the spreadsheet’s "
+    showGridAction->setStatusTip(tr("Show or hide the spreadsheet's "
                                     "grid"));
     connect(showGridAction, SIGNAL(toggled(bool)),
             spreadsheet, SLOT(setShowGrid(bool)));
 
     // ...
     aboutQtAction = new QAction(tr("About &Qt"), this);
-    aboutQtAction->setStatusTip(tr("Show the Qt library’s About box"));
+    aboutQtAction->setStatusTip(tr("Show the Qt library's About box"));
     connect(aboutQtAction, SIGNAL(triggered()), qApp, SLOT(aboutQt()));
 
     closeAction = new QAction(tr("&Close"), this);
-    closeAction->setShortcut(tr("Ctrl+W"));
+    //closeAction->setShortcut(tr("Ctrl+W"));
+    closeAction->setShortcut(tr(QKeySequence::Close));
     closeAction->setStatusTip(tr("Close this window"));
     connect(closeAction, SIGNAL(triggered()), this, SLOT(close()));
 
@@ -342,6 +345,7 @@ void MainWindow::createStatusBar()
     updateStatusBar();
 }
 
+// NOTE: book has slightly different code???
 bool MainWindow::okToContinue()
 {
     if (isWindowModified()) {
@@ -377,6 +381,7 @@ bool MainWindow::saveFile(const QString &fileName)
         statusBar()->showMessage(tr("Saving canceled"), 2000);
         return false;
     }
+
     setCurrentFile(fileName);
     statusBar()->showMessage(tr("File saved"), 2000);
     return true;
@@ -392,12 +397,12 @@ void MainWindow::setCurrentFile(const QString &fileName)
         recentFiles.removeAll(curFile);
         recentFiles.prepend(curFile);
         // ONE WINDOW VERSION
-        //updateRecentFileActions();
+        updateRecentFileActions();
         // MULTIPLE WINDOW VERSION
-        foreach (QWidget *win, QApplication::topLevelWidgets()) {
-            if (MainWindow *mainWin = qobject_cast<MainWindow *>(win))
-            mainWin->updateRecentFileActions();
-        }
+        //foreach (QWidget *win, QApplication::topLevelWidgets()) {
+        //    if (MainWindow *mainWin = qobject_cast<MainWindow *>(win))
+        //    mainWin->updateRecentFileActions();
+        //}
     }
     setWindowTitle(tr("%1[*] - %2").arg(shownName)
                                    .arg(tr("Spreadsheet")));
@@ -417,6 +422,7 @@ void MainWindow::updateRecentFileActions()
         if (!QFile::exists(i.next()))
         i.remove();
     }
+
     for (int j = 0; j < MaxRecentFiles; ++j) {
         if (j < recentFiles.count()) {
             QString text = tr("&%1 %2")
@@ -436,7 +442,8 @@ void MainWindow::updateRecentFileActions()
 void MainWindow::writeSettings()
 {
     QSettings settings("Software Inc.", "Spreadsheet");
-    settings.setValue("geometry", geometry());
+
+    settings.setValue("geometry", geometry());  // NOTE: or saveGeometry() ???
     settings.setValue("recentFiles", recentFiles);
     settings.setValue("showGrid", showGridAction->isChecked());
     settings.setValue("autoRecalc", autoRecalcAction->isChecked());
@@ -447,19 +454,22 @@ void MainWindow::readSettings()
 {
     QSettings settings("Software Inc.", "Spreadsheet");
 
-    QRect rect = settings.value("geometry",
-                                QRect(200, 200, 400, 400)).toRect();
-    move(rect.topLeft());
-    resize(rect.size());
+    // ORIGINAL CODE
+    //QRect rect = settings.value("geometry",
+    //                            QRect(200, 200, 400, 400)).toRect();
+    //move(rect.topLeft());
+    //resize(rect.size());
+    // BOOK CODE
+    restoreGeometry(settings.value("geometry").toByteArray());
 
     recentFiles = settings.value("recentFiles").toStringList();
     // ONE WINDOW VERSION
-    //updateRecentFileActions();
+    updateRecentFileActions();
     // MULTIPLE WINDOW VERSION
-    foreach (QWidget *win, QApplication::topLevelWidgets()) {
-        if (MainWindow *mainWin = qobject_cast<MainWindow *>(win))
-        mainWin->updateRecentFileActions();
-    }
+    //foreach (QWidget *win, QApplication::topLevelWidgets()) {
+    //    if (MainWindow *mainWin = qobject_cast<MainWindow *>(win))
+    //    mainWin->updateRecentFileActions();
+    //}
 
 
     bool showGrid = settings.value("showGrid", true).toBool();
