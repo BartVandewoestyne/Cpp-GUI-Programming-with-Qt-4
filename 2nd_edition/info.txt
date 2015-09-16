@@ -1,0 +1,3 @@
+Official source code is available from
+
+  http://www.informit.com/store/c-plus-plus-gui-programming-with-qt4-9780132354165
